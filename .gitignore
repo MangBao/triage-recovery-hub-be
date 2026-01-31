@@ -65,3 +65,4 @@ migrations/versions/*.pyc
 
 # Docs
 docs/
+docker-compose.override.yml
