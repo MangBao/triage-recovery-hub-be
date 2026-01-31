@@ -94,6 +94,56 @@ async def health_check():
     return {"status": "ok", "service": "triage-recovery-hub"}
 
 
+@app.get("/health/deep")
+async def deep_health_check():
+    """
+    Deep health check - verifies all backend dependencies.
+    
+    Checks:
+    - PostgreSQL connectivity (SELECT 1)
+    - Redis connectivity (PING)
+    
+    Returns:
+        200 OK with component status if all healthy
+        503 Service Unavailable if any dependency fails
+    """
+    from sqlalchemy import text
+    from app.database import SessionLocal
+    import redis
+    
+    status = {"db": "unknown", "redis": "unknown"}
+    all_healthy = True
+    
+    # Check PostgreSQL
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        status["db"] = "ok"
+    except Exception as e:
+        status["db"] = f"error: {str(e)[:100]}"
+        all_healthy = False
+    
+    # Check Redis
+    try:
+        r = redis.from_url(settings.REDIS_URL)
+        r.ping()
+        r.close()
+        status["redis"] = "ok"
+    except Exception as e:
+        status["redis"] = f"error: {str(e)[:100]}"
+        all_healthy = False
+    
+    if all_healthy:
+        return {"status": "ok", "components": status}
+    else:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "components": status}
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

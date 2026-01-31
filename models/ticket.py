@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Text, Enum, DateTime, CheckConst
 from sqlalchemy.sql import func
 
 from app.database import Base
-from models.enums import TicketStatus, TicketCategory, UrgencyLevel
+from models.enums import TicketStatus, TicketCategory, UrgencyLevel, AIStatus
 
 
 class Ticket(Base):
@@ -37,6 +37,7 @@ class Ticket(Base):
     sentiment_score = Column(Integer, nullable=True)  # 1-10 scale (validated by constraint)
     urgency = Column(Enum(UrgencyLevel), nullable=True, index=True)
     ai_draft_response = Column(Text, nullable=True)
+    ai_status = Column(Enum(AIStatus), nullable=True)  # success, fallback, error
     
     # Agent Actions
     agent_edited_response = Column(Text, nullable=True)

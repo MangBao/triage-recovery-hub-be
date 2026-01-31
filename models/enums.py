@@ -26,3 +26,10 @@ class UrgencyLevel(str, Enum):
     HIGH = "High"
     MEDIUM = "Medium"
     LOW = "Low"
+
+
+class AIStatus(str, Enum):
+    """AI processing result status."""
+    SUCCESS = "success"      # Gemini returned valid response
+    FALLBACK = "fallback"    # Used fallback due to API error
+    ERROR = "error"          # Hard failure (should not happen often)

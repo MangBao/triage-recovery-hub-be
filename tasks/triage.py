@@ -8,6 +8,7 @@ from tasks.worker import huey
 from app.database import SessionLocal
 from app.config import settings
 from models.ticket import Ticket, TicketStatus
+from models.enums import AIStatus
 from services.llm import triage_service
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,14 @@ def process_ticket_triage(ticket_id: int):
             logger.error(f"[WORKER] Ticket {ticket_id} not found!")
             return
         
+        # Race condition protection: Only process if still PENDING
+        if ticket.status != TicketStatus.PENDING:
+            logger.warning(
+                f"[WORKER] Skipping ticket {ticket_id}: status is {ticket.status.value}, not PENDING. "
+                "This may happen if an agent manually resolved the ticket."
+            )
+            return
+        
         # Update status to processing
         ticket.status = TicketStatus.PROCESSING
         db.commit()
@@ -61,6 +70,7 @@ def process_ticket_triage(ticket_id: int):
         ticket.sentiment_score = ai_response.sentiment_score
         ticket.urgency = ai_response.urgency
         ticket.ai_draft_response = ai_response.draft_response
+        ticket.ai_status = ai_response.ai_status  # Track if success or fallback
         ticket.status = TicketStatus.COMPLETED
         ticket.error_message = None
         

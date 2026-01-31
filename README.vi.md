@@ -108,7 +108,7 @@ docker-compose exec backend python tests/full_verification.py
 
 ### 5️⃣ Kiểm tra Thủ công (Manual Verify)
 
-- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health) (Cơ bản) | [http://localhost:8000/health/deep](http://localhost:8000/health/deep) (Chi tiết)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
@@ -141,6 +141,7 @@ curl http://localhost:8000/api/tickets/1
   "category": "Billing",
   "urgency": "High",
   "sentiment_score": 2,
+  "ai_status": "success",
   "ai_draft_response": "Chào bạn, xin lỗi vì sự cố trừ tiền đúp..."
 }
 ```

@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 # Import centralized enums (single source of truth)
-from models.enums import TicketStatus, TicketCategory, UrgencyLevel
+from models.enums import TicketStatus, TicketCategory, UrgencyLevel, AIStatus
 
 
 # Request Schemas
@@ -42,6 +42,7 @@ class AITriageResponse(BaseModel):
     sentiment_score: int = Field(..., ge=1, le=10)
     urgency: UrgencyLevel
     draft_response: str = Field(..., min_length=20, max_length=2000)
+    ai_status: AIStatus = AIStatus.SUCCESS  # Default to success, service overrides for fallback
     
     model_config = {
         "use_enum_values": False
@@ -59,6 +60,7 @@ class TicketResponse(BaseModel):
     sentiment_score: Optional[int]
     urgency: Optional[UrgencyLevel]
     ai_draft_response: Optional[str]
+    ai_status: Optional[AIStatus]  # success, fallback, error
     agent_edited_response: Optional[str]
     resolved_at: Optional[datetime]
     agent_id: Optional[str]
