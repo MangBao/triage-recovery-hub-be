@@ -6,13 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from tasks.worker import huey
 from app.database import SessionLocal
+from app.config import settings
 from models.ticket import Ticket, TicketStatus
 from services.llm import triage_service
 
 logger = logging.getLogger(__name__)
-
-# Timeout for external API calls (seconds)
-API_TIMEOUT_SECONDS = 30
 
 
 @huey.task(retries=3, retry_delay=5)
@@ -52,7 +50,7 @@ def process_ticket_triage(ticket_id: int):
         logger.info(f"[WORKER] Calling Gemini for ticket {ticket_id}...")
         ai_response = triage_service.triage_complaint(
             ticket.customer_complaint,
-            timeout=API_TIMEOUT_SECONDS
+            timeout=settings.API_TIMEOUT_SECONDS
         )
         
         if not ai_response:

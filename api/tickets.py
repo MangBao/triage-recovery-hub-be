@@ -1,11 +1,14 @@
 """Ticket management API endpoints."""
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
+from app.config import settings
 from models.ticket import Ticket, TicketStatus
 from models.schemas import (
     TicketCreateRequest,
@@ -18,10 +21,15 @@ from tasks.triage import process_ticket_triage
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Rate limiter instance (shared with app via state)
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("", status_code=201, response_model=TicketResponse)
+@limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
 def create_ticket(
-    request: TicketCreateRequest,
+    ticket_create: TicketCreateRequest,
+    request: Request,  # Required for slowapi (param name must be 'request' by default or configured)
     db: Session = Depends(get_db)
 ):
     """
@@ -41,7 +49,7 @@ def create_ticket(
     """
     try:
         # Create ticket
-        ticket = Ticket(customer_complaint=request.customer_complaint)
+        ticket = Ticket(customer_complaint=ticket_create.customer_complaint)
         db.add(ticket)
         db.commit()
         db.refresh(ticket)

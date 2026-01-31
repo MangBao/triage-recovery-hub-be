@@ -12,6 +12,7 @@ protobuf>=4.25.0  # Security fix: Override transitive dependency
 huey==2.4.5
 redis==5.0.1
 python-dotenv==1.0.0
+slowapi==0.1.9  # Rate limiting for FastAPI
 
 # Testing dependencies
 pytest==7.4.3

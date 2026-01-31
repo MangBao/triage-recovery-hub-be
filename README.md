@@ -18,7 +18,7 @@
 **Automated Customer Support & Triage System powered by AI**
 _Understand instantly - Respond immediately - Zero cost_
 
-[Demo Video](#) | [API Docs](http://localhost:8000/docs) | [Report Bug](#)
+[Demo Video](#) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | [Report Bug](#)
 
 </div>
 
@@ -53,6 +53,16 @@ graph LR
     Worker -->|Update| DB
 ```
 
+    Worker -->|Update| DB
+
+````
+
+### 💡 Engineering Decisions
+
+- **Non-blocking Ingestion**: Decoupled API (FastAPI) from heavy AI processing using **Huey + Redis**. This ensures the API returns `201 Created` in <100ms while AI processes in the background (meeting the "Bottleneck Test").
+- **AI Safety & Validation**: Implemented strict **Pydantic V2** schemas to parse and validate LLM JSON outputs. If the AI hallucinates invalid data, the system falls back gracefully instead of crashing.
+- **Resilience**: Added **Rate Limiting** (SlowAPI) and **Timeouts** to protect against 3rd-party API failures and potential DOS attacks.
+
 ---
 
 ## 🚀 Quick Start
@@ -66,13 +76,13 @@ graph LR
 
 ```bash
 # Clone project
-git clone https://github.com/your-repo/triage-recovery-hub-be.git
+git clone https://github.com/MangBao/triage-recovery-hub-be.git
 cd triage-recovery-hub-be
 
 # Configure environment
 cp .env.example .env
 # ⚠️ Open .env file and add your GOOGLE_API_KEY!
-```
+````
 
 ### 3️⃣ Deploy
 
@@ -84,7 +94,23 @@ docker-compose up -d --build
 
 > **Note:** The system will automatically create database tables on startup. No manual migration needed.
 
-### 4️⃣ Verify
+### 4️⃣ Advanced Verification
+
+Runs a unified 5-layer test suite covering Functional, Security, and Load resilience.
+
+```bash
+docker-compose exec backend python tests/full_verification.py
+```
+
+| Test Layer              | Checks                                                |
+| :---------------------- | :---------------------------------------------------- |
+| **1. Unit/Integration** | Code logic, Database models, Services                 |
+| **2. Stress Test**      | 6 Business scenarios (Billing, Tech, Multilingual)    |
+| **3. Security Audit**   | SQL Injection, XSS, Huge Payloads (10KB), Empty Input |
+| **4. Rate Limiting**    | Spam protection check (Limits 30 req/min/IP)          |
+| **5. Heavy Load**       | 200 Concurrent Requests (Queue resilience test)       |
+
+### 5️⃣ Manual Verify
 
 - **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)

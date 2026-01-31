@@ -2,19 +2,23 @@
 
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.database import engine, Base
 from app.config import settings, get_cors_origins_list
+from app.logging_config import setup_logging
 from api.tickets import router as tickets_router
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Setup centralized logging with file rotation
+setup_logging()
 logger = logging.getLogger(__name__)
+
+# Rate Limiter (per IP address)
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -35,6 +39,7 @@ async def lifespan(app: FastAPI):
     # Alembic migrations available for schema versioning: `alembic upgrade head`
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Database ready")
+    logger.info(f"🛡️ Rate Limit: {settings.RATE_LIMIT_PER_MINUTE} req/min per IP")
     
     yield
     
@@ -51,6 +56,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Attach rate limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS Middleware (for Next.js frontend)
 app.add_middleware(

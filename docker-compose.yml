@@ -27,6 +27,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: triage_redis
+    # Enable AOF persistence for task durability
+    command: redis-server --appendonly yes --appendfsync everysec
     # Production: No exposed ports (internal network only)
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -60,7 +62,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Production: No volume mount (use built image)
+    # Log persistence
+    volumes:
+      - logs_data:/app/logs
     networks:
       - triage_network
     healthcheck:
@@ -88,7 +92,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Production: No volume mount (use built image)
+    # Log persistence
+    volumes:
+      - logs_data:/app/logs
     networks:
       - triage_network
     command: huey_consumer tasks.worker.huey -v
@@ -98,6 +104,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  logs_data:
     driver: local
 
 networks:
