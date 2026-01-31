@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -81,6 +82,11 @@ app.add_middleware(SlowAPIMiddleware)
 app.include_router(tickets_router, prefix="/api/tickets", tags=["tickets"])
 
 
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/health")
 async def health_check():
     """
@@ -108,31 +114,38 @@ async def deep_health_check():
         503 Service Unavailable if any dependency fails
     """
     from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
     from app.database import SessionLocal
     import redis
+    from redis.exceptions import RedisError
     
     status = {"db": "unknown", "redis": "unknown"}
     all_healthy = True
     
-    # Check PostgreSQL
+    # Check PostgreSQL with context manager
     try:
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
         status["db"] = "ok"
-    except Exception as e:
+    except SQLAlchemyError as e:
         status["db"] = f"error: {str(e)[:100]}"
         all_healthy = False
     
-    # Check Redis
+    # Check Redis with try/finally
+    r = None
     try:
         r = redis.from_url(settings.REDIS_URL)
         r.ping()
-        r.close()
         status["redis"] = "ok"
-    except Exception as e:
+    except RedisError as e:
         status["redis"] = f"error: {str(e)[:100]}"
         all_healthy = False
+    finally:
+        if r is not None:
+            try:
+                r.close()
+            except RedisError:
+                pass  # Ignore close errors
     
     if all_healthy:
         return {"status": "ok", "components": status}

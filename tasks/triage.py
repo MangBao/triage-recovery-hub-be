@@ -42,18 +42,24 @@ def process_ticket_triage(ticket_id: int):
             logger.error(f"[WORKER] Ticket {ticket_id} not found!")
             return
         
-        # Race condition protection: Only process if still PENDING
-        if ticket.status != TicketStatus.PENDING:
+        # Atomic claim: Only process if status is PENDING (prevents race condition)
+        # This UPDATE only affects rows WHERE status=PENDING, returning rowcount
+        from sqlalchemy import update
+        result = db.execute(
+            update(Ticket)
+            .where(Ticket.id == ticket_id, Ticket.status == TicketStatus.PENDING)
+            .values(status=TicketStatus.PROCESSING)
+        )
+        db.commit()
+        
+        if result.rowcount == 0:
             logger.warning(
-                f"[WORKER] Skipping ticket {ticket_id}: status is {ticket.status.value}, not PENDING. "
-                "This may happen if an agent manually resolved the ticket."
+                f"[WORKER] Skipping ticket {ticket_id}: already claimed or not pending. "
+                "This may happen if another worker processed it or an agent manually resolved."
             )
             return
         
-        # Update status to processing
-        ticket.status = TicketStatus.PROCESSING
-        db.commit()
-        logger.info(f"[WORKER] Ticket {ticket_id} marked as processing")
+        logger.info(f"[WORKER] Ticket {ticket_id} claimed and marked as processing")
         
         # Call Gemini API (triage_service has internal timeout handling)
         logger.info(f"[WORKER] Calling Gemini for ticket {ticket_id}...")
