@@ -158,5 +158,5 @@ curl http://localhost:8000/api/tickets/1
 ---
 
 <div align="center">
-  <p>Made with ❤️ by <b>Antigravity Team</b></p>
+  <p>Made with ❤️ by <a href="https://github.com/MangBao"><b>MangBao</b></a></p>
 </div>
