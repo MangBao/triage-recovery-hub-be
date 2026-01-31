@@ -41,7 +41,7 @@ class AITriageResponse(BaseModel):
     category: TicketCategory
     sentiment_score: int = Field(..., ge=1, le=10)
     urgency: UrgencyLevel
-    draft_response: str = Field(..., min_length=10, max_length=2000)
+    draft_response: str = Field(..., min_length=20, max_length=2000)
     
     model_config = {
         "use_enum_values": False

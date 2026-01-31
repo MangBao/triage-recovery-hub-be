@@ -47,8 +47,11 @@ class TriageService:
             logger.info(f"[TRIAGE] Starting triage for complaint (length={len(complaint)} chars)")
             logger.debug(f"[TRIAGE] Complaint preview: {complaint[:50]}...")
             
-            # Call Gemini API (FREE tier)
-            response = self.model.generate_content(prompt)
+            # Call Gemini API (FREE tier) with timeout protection
+            response = self.model.generate_content(
+                prompt,
+                request_options={"timeout": timeout}
+            )
             response_text = response.text.strip()
             # DEBUG: Raw response may contain reflected PII - only log in development
             if settings.DEBUG:

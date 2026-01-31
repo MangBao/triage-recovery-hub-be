@@ -44,7 +44,7 @@ class TestTicketSchemas:
                 category=TicketCategory.BILLING,
                 sentiment_score=15,  # Out of range (1-10)
                 urgency=UrgencyLevel.HIGH,
-                draft_response="Test"
+                draft_response="This is a valid draft response text."
             )
     
     def test_ai_triage_response_invalid_category(self):
@@ -54,5 +54,5 @@ class TestTicketSchemas:
                 category="InvalidCategory",
                 sentiment_score=5,
                 urgency=UrgencyLevel.HIGH,
-                draft_response="Test"
+                draft_response="This is a valid draft response text."
             )
