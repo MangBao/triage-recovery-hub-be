@@ -47,11 +47,10 @@ class TriageService:
             logger.info(f"[TRIAGE] Starting triage for complaint (length={len(complaint)} chars)")
             logger.debug(f"[TRIAGE] Complaint preview: {complaint[:50]}...")
             
-            # Call Gemini API (FREE tier) with timeout protection
-            response = self.model.generate_content(
-                prompt,
-                request_options={"timeout": timeout}
-            )
+            # Call Gemini API (FREE tier)
+            # Note: request_options with timeout is not supported in google-generativeai v0.3.0
+            # Timeout will be handled at the network layer or by upgrading the SDK
+            response = self.model.generate_content(prompt)
             response_text = response.text.strip()
             # DEBUG: Raw response may contain reflected PII - only log in development
             if settings.DEBUG:

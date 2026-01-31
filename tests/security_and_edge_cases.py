@@ -38,7 +38,7 @@ TEST_CASES = [
 ]
 
 def run_security_tests():
-    print(f"🕵️ STARTING SECURITY & EDGE CASE TESTS")
+    print("🕵️ STARTING SECURITY & EDGE CASE TESTS")
     print("-" * 50)
     
     passed = 0

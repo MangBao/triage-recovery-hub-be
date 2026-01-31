@@ -57,7 +57,6 @@ def run_load_test():
                 print(f"   ...sent {len(results)}/{TOTAL_REQUESTS} requests")
 
     total_time = time.time() - start_time
-    total_time = time.time() - start_time
     success_count = sum(1 for r in results if r["status_code"] == 201)
     blocked_count = sum(1 for r in results if r["status_code"] == 429)
     error_count = len(results) - success_count - blocked_count
@@ -98,8 +97,6 @@ def run_load_test():
             total_failed = resp_failed.json().get("total", 0)
             total_pending = resp_pending.json().get("total", 0)
             total_processing = resp_processing.json().get("total", 0)
-            
-            processed = total_completed + total_failed
             
             print(f"   [{i*2}s] Pending: {total_pending} | Processing: {total_processing} | Completed: {total_completed} | Failed: {total_failed}")
             

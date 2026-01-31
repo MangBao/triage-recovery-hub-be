@@ -2,11 +2,12 @@
 
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.database import engine, Base
 from app.config import settings, get_cors_origins_list
@@ -17,8 +18,11 @@ from api.tickets import router as tickets_router
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Rate Limiter (per IP address)
-limiter = Limiter(key_func=get_remote_address)
+# Rate Limiter (per IP address) with default limits for all routes
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
+)
 
 
 @asynccontextmanager
@@ -39,7 +43,7 @@ async def lifespan(app: FastAPI):
     # Alembic migrations available for schema versioning: `alembic upgrade head`
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Database ready")
-    logger.info(f"🛡️ Rate Limit: {settings.RATE_LIMIT_PER_MINUTE} req/min per IP")
+    logger.info(f"🛡️ Rate Limit: {settings.RATE_LIMIT_PER_MINUTE} req/min per IP (default for all routes)")
     
     yield
     
@@ -57,7 +61,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Attach rate limiter to app
+# Attach shared rate limiter to app state (used by api/tickets.py via request.app.state.limiter)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -69,6 +73,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate Limiting Middleware (global - applies to all routes)
+app.add_middleware(SlowAPIMiddleware)
 
 # Include routers
 app.include_router(tickets_router, prefix="/api/tickets", tags=["tickets"])

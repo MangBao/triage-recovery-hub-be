@@ -50,6 +50,7 @@ SCENARIOS = [
 ]
 
 def run_test():
+    """Run stress test and return True if all passed, False otherwise."""
     print(f"🚀 Starting Stress Test with {len(SCENARIOS)} scenarios...\n")
     results = []
 
@@ -59,11 +60,11 @@ def run_test():
             resp = client.get("http://localhost:8000/health")
             if resp.status_code != 200:
                 print("❌ API is not healthy. Aborting.")
-                return
+                return False
             print("✅ Health Check OK\n")
         except Exception as e:
             print(f"❌ Failed to reach API: {e}")
-            return
+            return False
 
         for scenario in SCENARIOS:
             print(f"Testing: {scenario['name']}")
@@ -74,7 +75,7 @@ def run_test():
                 resp = client.post(API_URL, json={"customer_complaint": scenario['complaint']})
                 if resp.status_code != 201:
                     print(f"❌ Failed to create ticket: {resp.text}")
-                    results.append({"name": scenario['name'], "status": "Failed (Create)"})
+                    results.append({"name": scenario['name'], "status": "Failed"})
                     continue
                 
                 ticket = resp.json()
@@ -130,6 +131,17 @@ def run_test():
         urg = r.get('urgency', 'N/A') or 'N/A'
         print(f"{r['name']:<35} | {r['status']:<10} | {cat:<15} | {urg:<10}")
     print("=" * 60)
+    
+    # Determine overall success
+    failed_statuses = {"Failed", "Timeout", "Error", "Fail"}
+    success = all(r.get("status") not in failed_statuses for r in results)
+    return success
 
 if __name__ == "__main__":
-    run_test()
+    success = run_test()
+    if success:
+        print("🎉 All scenarios passed!")
+        sys.exit(0)
+    else:
+        print("⚠️ Some scenarios failed.")
+        sys.exit(1)

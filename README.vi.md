@@ -18,7 +18,7 @@
 **Hệ thống phân loại và xử lý khiếu nại khách hàng tự động bằng AI**
 _Nhanh chóng thấu hiểu - Phản hồi tức thì - Chi phí bằng 0_
 
-[Demo Video](#) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | [Report Bug](#)
+Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | Report Bug (TODO)
 
 </div>
 
@@ -53,15 +53,11 @@ graph LR
     Worker -->|Update| DB
 ```
 
-    Worker -->|Update| DB
-
-````
-
 ### 💡 Các Quyết định Kỹ thuật (Engineering Decisions)
 
 - **Non-blocking Ingestion**: Tách biệt API (FastAPI) khỏi quá trình xử lý AI bằng **Huey + Redis**. Đảm bảo API trả về `201 Created` dưới 100ms trong khi AI chạy ngầm (Đáp ứng yêu cầu "Bottleneck Test").
-- **AI Safety & Validation**: Sử dụng **Pydantic V2** dể validate chặt chẽ JSON trả về từ LLM. Nếu AI trả về dữ liệu lỗi, hệ thống sẽ tự động fallback thay vì crash.
-- **Resilience**: Tích hợp **Rate Limiting** (SlowAPI) và **Timeouts** để bảo vệ hệ thống khỏi lỗi API bên thứ 3 và các tấn công DOS.
+- **AI Safety & Validation**: Sử dụng **Pydantic V2** để validate chặt chẽ JSON trả về từ LLM. Nếu AI trả về dữ liệu lỗi, hệ thống sẽ tự động fallback thay vì crash.
+- **Resilience**: Tích hợp **Rate Limiting** (SlowAPI) và **Timeouts** để bảo vệ hệ thống khỏi lỗi API bên thứ 3 và các tấn công DoS.
 
 ---
 
@@ -69,7 +65,7 @@ graph LR
 
 ### 1️⃣ Yêu cầu (Prerequisites)
 
-- **Docker Design** & **Docker Compose**
+- **Docker Desktop** & **Docker Compose**
 - **Google API Key** (Miễn phí): [Lấy tại đây](https://aistudio.google.com/)
 
 ### 2️⃣ Thiết lập (Setup)
@@ -82,7 +78,7 @@ cd triage-recovery-hub-be
 # Cấu hình môi trường
 cp .env.example .env
 # ⚠️ Mở file .env và điền GOOGLE_API_KEY của bạn vào!
-````
+```
 
 ### 3️⃣ Khởi chạy (Deploy)
 
@@ -92,10 +88,6 @@ Sử dụng Docker Compose để dựng toàn bộ hệ thống (db, redis, back
 docker-compose up -d --build
 ```
 
-docker-compose up -d --build
-
-````
-
 > **Note:** Hệ thống sẽ tự động tạo bảng (Tables) khi khởi động. Không cần chạy migration thủ công.
 
 ### 4️⃣ Kiểm thử Nâng cao (Advanced Verification)
@@ -104,7 +96,7 @@ Chạy bộ test 5 lớp bao gồm Functional, Security và Load Resilience.
 
 ```bash
 docker-compose exec backend python tests/full_verification.py
-````
+```
 
 | Lớp Test                | Nội dung kiểm tra                                  |
 | :---------------------- | :------------------------------------------------- |

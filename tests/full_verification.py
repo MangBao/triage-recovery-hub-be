@@ -49,7 +49,7 @@ def wait_for_rate_limit_reset(seconds=65):
     for i in range(seconds, 0, -1):
         print(f"\r   Time remaining: {i}s...", end="")
         time.sleep(1)
-    print(f"\r   Reference reset complete.       \n")
+    print("\r   Reference reset complete.       \n")
 
 def main():
     print(f"{GREEN}🚀 STARTING FULL VERIFICATION SUITE{RESET}")

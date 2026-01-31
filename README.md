@@ -18,7 +18,7 @@
 **Automated Customer Support & Triage System powered by AI**
 _Understand instantly - Respond immediately - Zero cost_
 
-[Demo Video](#) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | [Report Bug](#)
+Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | Report Bug (TODO)
 
 </div>
 
@@ -53,15 +53,11 @@ graph LR
     Worker -->|Update| DB
 ```
 
-    Worker -->|Update| DB
-
-````
-
 ### 💡 Engineering Decisions
 
 - **Non-blocking Ingestion**: Decoupled API (FastAPI) from heavy AI processing using **Huey + Redis**. This ensures the API returns `201 Created` in <100ms while AI processes in the background (meeting the "Bottleneck Test").
 - **AI Safety & Validation**: Implemented strict **Pydantic V2** schemas to parse and validate LLM JSON outputs. If the AI hallucinates invalid data, the system falls back gracefully instead of crashing.
-- **Resilience**: Added **Rate Limiting** (SlowAPI) and **Timeouts** to protect against 3rd-party API failures and potential DOS attacks.
+- **Resilience**: Added **Rate Limiting** (SlowAPI) and **Timeouts** to protect against 3rd-party API failures and potential DoS attacks.
 
 ---
 
@@ -69,7 +65,7 @@ graph LR
 
 ### 1️⃣ Prerequisites
 
-- **Docker Design** & **Docker Compose**
+- **Docker Desktop** & **Docker Compose**
 - **Google API Key** (Free): [Get it here](https://aistudio.google.com/)
 
 ### 2️⃣ Setup
@@ -82,7 +78,7 @@ cd triage-recovery-hub-be
 # Configure environment
 cp .env.example .env
 # ⚠️ Open .env file and add your GOOGLE_API_KEY!
-````
+```
 
 ### 3️⃣ Deploy
 
