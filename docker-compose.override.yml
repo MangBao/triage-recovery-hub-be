@@ -1,0 +1,48 @@
+# docker-compose.override.yml - DEVELOPMENT overrides
+# This file is automatically loaded with docker-compose.yml
+# For production: docker-compose -f docker-compose.yml up (skips this file)
+
+services:
+  postgres:
+    environment:
+      # Development-only defaults (NOT for production use)
+      POSTGRES_USER: ${DB_USER:-dev_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
+      POSTGRES_DB: ${DB_NAME:-dev_triage_db}
+    # Development: Expose ports for local tools (DBeaver, psql, etc.)
+    ports:
+      - "5432:5432"
+
+  redis:
+    # Development: Expose port for local debugging
+    ports:
+      - "6379:6379"
+
+  backend:
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-dev_user}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-dev_triage_db}
+      ENVIRONMENT: development
+      DEBUG: "true"
+    # Development: Mount source code for hot reload
+    volumes:
+      - .:/app
+    # Override command to enable hot reload (uvicorn --reload)
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
+
+  worker:
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-dev_user}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-dev_triage_db}
+      ENVIRONMENT: development
+      DEBUG: "true"
+    # Development: Mount source code for hot reload
+    volumes:
+      - .:/app
