@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 from pydantic import ValidationError
 
 from models.schemas import AITriageResponse
+from models.enums import AIStatus
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,8 @@ class ValidationService:
                 "Thank you for contacting us. We appreciate your feedback. "
                 "We're reviewing your concern and will get back to you shortly. "
                 "Our support team aims to respond within 24 hours."
-            )
+            ),
+            ai_status=AIStatus.FALLBACK  # Mark as fallback for transparency
         )
 
 

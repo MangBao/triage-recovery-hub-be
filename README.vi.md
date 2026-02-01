@@ -18,7 +18,7 @@
 **Hệ thống phân loại và xử lý khiếu nại khách hàng tự động bằng AI**
 _Nhanh chóng thấu hiểu - Phản hồi tức thì - Chi phí bằng 0_
 
-[Demo Video](#) | [API Docs](http://localhost:8000/docs) | [Report Bug](#)
+Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-hub-fe) | [API Docs](http://localhost:8000/docs) | Report Bug (TODO)
 
 </div>
 
@@ -53,20 +53,26 @@ graph LR
     Worker -->|Update| DB
 ```
 
+### 💡 Các Quyết định Kỹ thuật (Engineering Decisions)
+
+- **Non-blocking Ingestion**: Tách biệt API (FastAPI) khỏi quá trình xử lý AI bằng **Huey + Redis**. Đảm bảo API trả về `201 Created` dưới 100ms trong khi AI chạy ngầm (Đáp ứng yêu cầu "Bottleneck Test").
+- **AI Safety & Validation**: Sử dụng **Pydantic V2** để validate chặt chẽ JSON trả về từ LLM. Nếu AI trả về dữ liệu lỗi, hệ thống sẽ tự động fallback thay vì crash.
+- **Resilience**: Tích hợp **Rate Limiting** (SlowAPI) và **Timeouts** để bảo vệ hệ thống khỏi lỗi API bên thứ 3 và các tấn công DoS.
+
 ---
 
 ## 🚀 Cài đặt & Chạy ngay (Quick Start)
 
 ### 1️⃣ Yêu cầu (Prerequisites)
 
-- **Docker Design** & **Docker Compose**
+- **Docker Desktop** & **Docker Compose**
 - **Google API Key** (Miễn phí): [Lấy tại đây](https://aistudio.google.com/)
 
 ### 2️⃣ Thiết lập (Setup)
 
 ```bash
 # Clone project
-git clone https://github.com/your-repo/triage-recovery-hub-be.git
+git clone https://github.com/MangBao/triage-recovery-hub-be.git
 cd triage-recovery-hub-be
 
 # Cấu hình môi trường
@@ -84,9 +90,25 @@ docker-compose up -d --build
 
 > **Note:** Hệ thống sẽ tự động tạo bảng (Tables) khi khởi động. Không cần chạy migration thủ công.
 
-### 4️⃣ Kiểm tra (Verify)
+### 4️⃣ Kiểm thử Nâng cao (Advanced Verification)
 
-- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+Chạy bộ test 5 lớp bao gồm Functional, Security và Load Resilience.
+
+```bash
+docker-compose exec backend python tests/full_verification.py
+```
+
+| Lớp Test                | Nội dung kiểm tra                                  |
+| :---------------------- | :------------------------------------------------- |
+| **1. Unit/Integration** | Logic Code, Database models, Services              |
+| **2. Stress Test**      | 6 Kịch bản nghiệp vụ (Billing, Tech, Đa ngôn ngữ)  |
+| **3. Security Audit**   | SQL Injection, XSS, Payload lớn (10KB), Input rỗng |
+| **4. Rate Limiting**    | Chống Spam/DoS (Giới hạn 30 req/phút/IP)           |
+| **5. Heavy Load**       | Chịu tải 200 Requests đồng thời (Queue Resilience) |
+
+### 5️⃣ Kiểm tra Thủ công (Manual Verify)
+
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health) (Cơ bản) | [http://localhost:8000/health/deep](http://localhost:8000/health/deep) (Chi tiết)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
@@ -119,6 +141,7 @@ curl http://localhost:8000/api/tickets/1
   "category": "Billing",
   "urgency": "High",
   "sentiment_score": 2,
+  "ai_status": "success",
   "ai_draft_response": "Chào bạn, xin lỗi vì sự cố trừ tiền đúp..."
 }
 ```

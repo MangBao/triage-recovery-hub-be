@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # Huey Worker Settings
     HUEY_WORKERS: int = 2
     HUEY_INITIAL_DELAY: int = 100  # milliseconds
+    
+    # API Settings
+    API_TIMEOUT_SECONDS: int = 30  # External API call timeout
+    
+    # Rate Limiting (requests per minute per IP)
+    RATE_LIMIT_PER_MINUTE: int = 30  # Conservative to protect Gemini quota (60/min)
 
 
 settings = Settings()

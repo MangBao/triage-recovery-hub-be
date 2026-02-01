@@ -38,6 +38,8 @@ def upgrade():
         sa.Column('urgency', sa.Enum('High', 'Medium', 'Low', name='urgencylevel'), 
                   nullable=True),
         sa.Column('ai_draft_response', sa.Text(), nullable=True),
+        sa.Column('ai_status', sa.Enum('success', 'fallback', 'error', name='aistatus'), 
+                  nullable=True),
         
         # Agent Actions
         sa.Column('agent_edited_response', sa.Text(), nullable=True),
@@ -82,3 +84,4 @@ def downgrade():
     op.execute('DROP TYPE IF EXISTS ticketstatus')
     op.execute('DROP TYPE IF EXISTS ticketcategory')
     op.execute('DROP TYPE IF EXISTS urgencylevel')
+    op.execute('DROP TYPE IF EXISTS aistatus')

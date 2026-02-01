@@ -3,16 +3,16 @@
 import logging
 import time
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import update
 
 from tasks.worker import huey
 from app.database import SessionLocal
+from app.config import settings
 from models.ticket import Ticket, TicketStatus
+from models.enums import AIStatus
 from services.llm import triage_service
 
 logger = logging.getLogger(__name__)
-
-# Timeout for external API calls (seconds)
-API_TIMEOUT_SECONDS = 30
 
 
 @huey.task(retries=3, retry_delay=5)
@@ -43,16 +43,32 @@ def process_ticket_triage(ticket_id: int):
             logger.error(f"[WORKER] Ticket {ticket_id} not found!")
             return
         
-        # Update status to processing
-        ticket.status = TicketStatus.PROCESSING
+        # Atomic claim: Only process if status is PENDING (prevents race condition)
+        # This UPDATE only affects rows WHERE status=PENDING, returning rowcount
+        result = db.execute(
+            update(Ticket)
+            .where(Ticket.id == ticket_id, Ticket.status == TicketStatus.PENDING)
+            .values(status=TicketStatus.PROCESSING)
+        )
         db.commit()
-        logger.info(f"[WORKER] Ticket {ticket_id} marked as processing")
+        
+        if result.rowcount == 0:
+            logger.warning(
+                f"[WORKER] Skipping ticket {ticket_id}: already claimed or not pending. "
+                "This may happen if another worker processed it or an agent manually resolved."
+            )
+            return
+        
+        # Refresh ticket to sync ORM state with DB after atomic update
+        db.refresh(ticket)
+        
+        logger.info(f"[WORKER] Ticket {ticket_id} claimed and marked as processing")
         
         # Call Gemini API (triage_service has internal timeout handling)
         logger.info(f"[WORKER] Calling Gemini for ticket {ticket_id}...")
         ai_response = triage_service.triage_complaint(
             ticket.customer_complaint,
-            timeout=API_TIMEOUT_SECONDS
+            timeout=settings.API_TIMEOUT_SECONDS
         )
         
         if not ai_response:
@@ -63,6 +79,7 @@ def process_ticket_triage(ticket_id: int):
         ticket.sentiment_score = ai_response.sentiment_score
         ticket.urgency = ai_response.urgency
         ticket.ai_draft_response = ai_response.draft_response
+        ticket.ai_status = ai_response.ai_status  # Track if success or fallback
         ticket.status = TicketStatus.COMPLETED
         ticket.error_message = None
         
