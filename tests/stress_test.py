@@ -120,6 +120,7 @@ def run_test():
                 results.append({"name": scenario['name'], "status": "Error"})
             
             print("-" * 50)
+            time.sleep(2.0) # Avoid rate limits between scenarios
 
     # Summary
     print("\n📊 TEST SUMMARY")
