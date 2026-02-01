@@ -8,6 +8,7 @@ from sqlalchemy.sql import func
 
 from app.database import get_db
 from models.ticket import Ticket, TicketStatus
+from models.enums import TicketCategory, UrgencyLevel, AIStatus
 from models.schemas import (
     TicketCreateRequest,
     TicketUpdateRequest,
@@ -105,15 +106,40 @@ def list_tickets(
     try:
         query = db.query(Ticket)
         
-        # Apply filters
+        # Apply filters (convert strings to Enum for PostgreSQL compatibility)
         if status:
-            query = query.filter(Ticket.status == status)
+            try:
+                query = query.filter(Ticket.status == TicketStatus(status))
+            except ValueError:
+                # Invalid status value - return empty result
+                return TicketListResponse(
+                    data=[],
+                    pagination=PaginationMeta(total=0, page=page, per_page=per_page, total_pages=0, has_more=False)
+                )
         if urgency:
-            query = query.filter(Ticket.urgency == urgency)
+            try:
+                query = query.filter(Ticket.urgency == UrgencyLevel(urgency))
+            except ValueError:
+                return TicketListResponse(
+                    data=[],
+                    pagination=PaginationMeta(total=0, page=page, per_page=per_page, total_pages=0, has_more=False)
+                )
         if category:
-            query = query.filter(Ticket.category == category)
+            try:
+                query = query.filter(Ticket.category == TicketCategory(category))
+            except ValueError:
+                return TicketListResponse(
+                    data=[],
+                    pagination=PaginationMeta(total=0, page=page, per_page=per_page, total_pages=0, has_more=False)
+                )
         if ai_status:
-            query = query.filter(Ticket.ai_status == ai_status)
+            try:
+                query = query.filter(Ticket.ai_status == AIStatus(ai_status))
+            except ValueError:
+                return TicketListResponse(
+                    data=[],
+                    pagination=PaginationMeta(total=0, page=page, per_page=per_page, total_pages=0, has_more=False)
+                )
         if created_after:
             query = query.filter(Ticket.created_at >= created_after)
         if created_before:
