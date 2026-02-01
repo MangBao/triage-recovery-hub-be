@@ -1,6 +1,7 @@
 """Ticket management API endpoints."""
 
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
@@ -11,7 +12,8 @@ from models.schemas import (
     TicketCreateRequest,
     TicketUpdateRequest,
     TicketResponse,
-    TicketListResponse
+    TicketListResponse,
+    PaginationMeta
 )
 from tasks.triage import process_ticket_triage
 
@@ -71,24 +73,34 @@ def create_ticket(
 
 @router.get("", response_model=TicketListResponse)
 def list_tickets(
-    status: str = Query(None, description="Filter by status"),
-    urgency: str = Query(None, description="Filter by urgency"),
-    limit: int = Query(20, ge=1, le=100, description="Results per page"),
-    offset: int = Query(0, ge=0, description="Pagination offset"),
+    status: str = Query(None, description="Filter by status (pending|processing|completed|failed)"),
+    urgency: str = Query(None, description="Filter by urgency (High|Medium|Low)"),
+    category: str = Query(None, description="Filter by category (Billing|Technical|Feature Request|General)"),
+    ai_status: str = Query(None, description="Filter by AI status (success|fallback|error)"),
+    created_after: datetime = Query(None, description="Filter tickets created after this datetime (ISO 8601)"),
+    created_before: datetime = Query(None, description="Filter tickets created before this datetime (ISO 8601)"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    per_page: int = Query(20, ge=1, le=100, description="Results per page"),
     db: Session = Depends(get_db)
 ):
     """
-    List tickets with optional filters and pagination.
+    List tickets with filters and pagination.
     
-    Query params:
+    **Filters:**
     - status: pending|processing|completed|failed
     - urgency: High|Medium|Low
-    - limit: max results (1-100, default 20)
-    - offset: pagination offset
+    - category: Billing|Technical|Feature Request|General
+    - ai_status: success|fallback|error
+    - created_after: ISO 8601 datetime
+    - created_before: ISO 8601 datetime
     
-    Returns:
-    - total: total matching tickets
-    - items: list of tickets (newest first)
+    **Pagination:**
+    - page: Page number (1-indexed, default 1)
+    - per_page: Results per page (1-100, default 20)
+    
+    **Response:**
+    - data: List of tickets (newest first)
+    - pagination: {total, page, per_page, total_pages, has_more}
     """
     try:
         query = db.query(Ticket)
@@ -98,16 +110,35 @@ def list_tickets(
             query = query.filter(Ticket.status == status)
         if urgency:
             query = query.filter(Ticket.urgency == urgency)
+        if category:
+            query = query.filter(Ticket.category == category)
+        if ai_status:
+            query = query.filter(Ticket.ai_status == ai_status)
+        if created_after:
+            query = query.filter(Ticket.created_at >= created_after)
+        if created_before:
+            query = query.filter(Ticket.created_at <= created_before)
         
         # Count total
         total = query.count()
         
+        # Calculate pagination
+        total_pages = (total + per_page - 1) // per_page  # Ceiling division
+        offset = (page - 1) * per_page
+        has_more = page < total_pages
+        
         # Get paginated results (newest first)
-        items = query.order_by(Ticket.created_at.desc()).offset(offset).limit(limit).all()
+        items = query.order_by(Ticket.created_at.desc()).offset(offset).limit(per_page).all()
         
         return TicketListResponse(
-            total=total,
-            items=[TicketResponse.model_validate(item) for item in items]
+            data=[TicketResponse.model_validate(item) for item in items],
+            pagination=PaginationMeta(
+                total=total,
+                page=page,
+                per_page=per_page,
+                total_pages=total_pages,
+                has_more=has_more
+            )
         )
         
     except Exception as e:
