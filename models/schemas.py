@@ -73,7 +73,16 @@ class TicketResponse(BaseModel):
     }
 
 
+class PaginationMeta(BaseModel):
+    """Standard pagination metadata following offset pagination pattern."""
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+    has_more: bool
+
+
 class TicketListResponse(BaseModel):
     """API response for ticket list with pagination."""
-    total: int
-    items: list[TicketResponse]
+    data: list[TicketResponse]
+    pagination: PaginationMeta
