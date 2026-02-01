@@ -3,6 +3,7 @@
 import logging
 import time
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import update
 
 from tasks.worker import huey
 from app.database import SessionLocal
@@ -44,7 +45,6 @@ def process_ticket_triage(ticket_id: int):
         
         # Atomic claim: Only process if status is PENDING (prevents race condition)
         # This UPDATE only affects rows WHERE status=PENDING, returning rowcount
-        from sqlalchemy import update
         result = db.execute(
             update(Ticket)
             .where(Ticket.id == ticket_id, Ticket.status == TicketStatus.PENDING)
@@ -58,6 +58,9 @@ def process_ticket_triage(ticket_id: int):
                 "This may happen if another worker processed it or an agent manually resolved."
             )
             return
+        
+        # Refresh ticket to sync ORM state with DB after atomic update
+        db.refresh(ticket)
         
         logger.info(f"[WORKER] Ticket {ticket_id} claimed and marked as processing")
         
