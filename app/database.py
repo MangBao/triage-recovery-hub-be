@@ -8,10 +8,10 @@ from app.config import settings
 engine = create_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,  # SQL logging in debug mode
-    pool_size=20,         # Increased from 10 for better concurrency
-    max_overflow=30,      # Increased from 20 for burst handling
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,   # Test connection health before using
-    pool_timeout=30,      # Wait up to 30s for available connection
+    pool_timeout=settings.DB_POOL_TIMEOUT,
 )
 
 # Session factory

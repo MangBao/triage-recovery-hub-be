@@ -55,6 +55,17 @@ def main():
     print(f"{GREEN}🚀 STARTING FULL VERIFICATION SUITE{RESET}")
     print("=" * 60)
     
+    # Safety Check
+    if "--force" not in sys.argv:
+        print(f"\n{YELLOW}⚠ WARNING: This suite runs Stress & Heavy Load tests.{RESET}")
+        print(f"{YELLOW}   It WILL consume significant Gemini quotas.{RESET}")
+        response = input(f"   Do you want to run the FULL suite? (y/N): ").strip().lower()
+        if response != "y":
+            print("❌ Aborted by user.")
+            sys.exit(0)
+    
+    auto_approve_subprocess = "--force" if "--force" in sys.argv else "--force" # Always pass force to children if we approved here
+    
     overall_success = True
     
     # 1. Unit & Integration Tests (Pytest)
@@ -63,7 +74,7 @@ def main():
         # Continue? Yes, for heavy load etc.
         
     # 2. Functional Business Logic (Stress Test)
-    if not run_command("python tests/stress_test.py", "Functional Scenarios (Billing, Tech, Multilingual)"):
+    if not run_command(f"python tests/stress_test.py {auto_approve_subprocess}", "Functional Scenarios (Billing, Tech, Multilingual)"):
         overall_success = False
 
     # 3. Security & Edge Cases
@@ -80,7 +91,7 @@ def main():
         
     # 5. Heavy Load
     wait_for_rate_limit_reset(65) # Wait for rate limit to clear before heavy load
-    if not run_command("python tests/heavy_load.py", "Heavy Load Test (200 Concurrent Requests)"):
+    if not run_command(f"python tests/heavy_load.py {auto_approve_subprocess}", "Heavy Load Test (200 Concurrent Requests)"):
         overall_success = False
 
     print("\n" + "=" * 60)

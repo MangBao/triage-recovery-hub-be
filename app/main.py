@@ -14,6 +14,7 @@ from app.database import engine, Base
 from app.config import settings, get_cors_origins_list
 from app.logging_config import setup_logging
 from api.tickets import router as tickets_router
+from api.websocket import router as websocket_router
 
 # Setup centralized logging with file rotation
 setup_logging()
@@ -50,6 +51,9 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down...")
+    from api.websocket import manager
+    if hasattr(manager, "shutdown"):
+        await manager.shutdown()
 
 
 # Create FastAPI application
@@ -80,6 +84,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 # Include routers
 app.include_router(tickets_router, prefix="/api/tickets", tags=["tickets"])
+app.include_router(websocket_router)
 
 
 @app.get("/", include_in_schema=False)
