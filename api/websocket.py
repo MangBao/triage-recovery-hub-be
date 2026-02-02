@@ -8,6 +8,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List, Dict, Set
 
 from app.pubsub import subscribe_ticket_updates_async
+from fastapi.concurrency import run_in_threadpool
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -175,6 +176,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     "type": "subscribed",
                     "ticket_ids": ticket_ids
                 })
+
+                # Snapshot Strategy: Send current state immediately to avoid race conditions
+                # This guarantees the client has the latest state even if they missed the "Processing" broadcast
+                try:
+                    snapshots = await run_in_threadpool(fetch_ticket_snapshots, ticket_ids)
+                    if snapshots:
+                        logger.info(f"📸 Sending initial snapshots for {len(snapshots)} tickets")
+                        for snapshot in snapshots:
+                            await websocket.send_json({
+                                "type": "ticket_updated",
+                                "data": snapshot
+                            })
+                except Exception as e:
+                    logger.error(f"⚠️ Failed to send snapshots: {e}")
                     
             elif action == "unsubscribe":
                 raw_ids = data.get("ticket_ids", [])
@@ -203,3 +218,22 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"❌ WebSocket error: {e}")
         await manager.disconnect(websocket)
+
+
+def fetch_ticket_snapshots(ticket_ids: List[int]) -> List[dict]:
+    """Helper to fetch current ticket states synchronously."""
+    from app.database import SessionLocal
+    from models.ticket import Ticket
+    from models.schemas import TicketResponse
+    
+    results = []
+    try:
+        with SessionLocal() as db:
+            tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
+            for ticket in tickets:
+                # Serialize using Pydantic model
+                data = json.loads(TicketResponse.model_validate(ticket).model_dump_json())
+                results.append(data)
+    except Exception as e:
+        logger.error(f"Snapshot fetch error: {e}")
+    return results
