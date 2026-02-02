@@ -97,7 +97,7 @@ services:
       - logs_data:/app/logs
     networks:
       - triage_network
-    command: huey_consumer tasks.worker.huey -v
+    command: huey_consumer tasks.worker.huey
     restart: unless-stopped
 
 volumes:
