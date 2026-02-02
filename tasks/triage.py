@@ -8,6 +8,7 @@ from sqlalchemy import update
 from tasks.worker import huey
 from app.database import SessionLocal
 from app.config import settings
+from app.pubsub import publish_ticket_update
 from models.ticket import Ticket, TicketStatus
 from models.enums import AIStatus
 from services.llm import triage_service
@@ -85,6 +86,18 @@ def process_ticket_triage(ticket_id: int):
         
         db.commit()
         
+        # Publish update to Redis for WebSocket broadcast
+        publish_ticket_update(ticket_id, {
+            "id": ticket.id,
+            "status": ticket.status.value,
+            "category": ticket.category.value if ticket.category else None,
+            "urgency": ticket.urgency.value if ticket.urgency else None,
+            "sentiment_score": ticket.sentiment_score,
+            "ai_status": ticket.ai_status.value if ticket.ai_status else None,
+            "ai_draft_response": ticket.ai_draft_response,
+            "updated_at": str(ticket.updated_at)
+        })
+        
         elapsed = time.time() - start_time
         logger.info(
             f"[WORKER] ✅ Completed for ticket {ticket_id} "
@@ -105,6 +118,15 @@ def process_ticket_triage(ticket_id: int):
                 ticket.status = TicketStatus.FAILED
                 ticket.error_message = str(e)[:500]  # Truncate long errors
                 db.commit()
+                
+                # Publish failure to Redis for WebSocket broadcast
+                publish_ticket_update(ticket_id, {
+                    "id": ticket.id,
+                    "status": ticket.status.value,
+                    "error_message": ticket.error_message,
+                    "updated_at": str(ticket.updated_at)
+                })
+                
                 logger.info(f"[WORKER] Updated ticket {ticket_id} status to failed")
         except SQLAlchemyError as db_error:
             logger.error(f"[WORKER] Failed to update error status: {db_error}")

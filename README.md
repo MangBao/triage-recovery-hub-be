@@ -35,7 +35,8 @@ Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-h
 | 🧠 **AI Triage**          | Categorize complaints (Billing, Tech, Feature) & assess urgency | `Google Gemini`           |
 | ❤️ **Sentiment Analysis** | Score customer sentiment (1-10) for prioritization              | `Gemini Pro`              |
 | ✍️ **Auto-Draft**         | Automatically generate professional drafts                      | `Generative AI`           |
-| ⚡ **Real-time Queue**    | Asynchronous processing, non-blocking requests                  | `Huey` + `Redis`          |
+| ⚡ **Real-time Push**     | WebSocket Broadcast for instant UI updates                      | `FastAPI Websockets`      |
+| 🕒 **Async Queue**        | Asynchronous processing, non-blocking requests                  | `Huey` + `Redis`          |
 | 🛡️ **Secure Design**      | Sensitive data masking, anti-collision, transaction rollbacks   | `Pydantic` + `SQLAlchemy` |
 
 ---
@@ -45,17 +46,21 @@ Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-h
 ```mermaid
 graph LR
     User[Client / App] -->|POST Ticket| API[FastAPI Backend]
+    User <-->|WebSocket| API
     API -->|Save| DB[(PostgreSQL)]
     API -->|Enqueue| Queue[(Redis)]
     Queue -->|Consume| Worker[Huey Worker]
     Worker -->|Analyze| AI[Google Gemini API]
     AI -->|Result| Worker
     Worker -->|Update| DB
+    Worker -->|Pub| Queue
+    Queue -->|Sub Update| API
 ```
 
 ### 💡 Engineering Decisions
 
 - **Non-blocking Ingestion**: Decoupled API (FastAPI) from heavy AI processing using **Huey + Redis**. This ensures the API returns `201 Created` in <100ms while AI processes in the background (meeting the "Bottleneck Test").
+- **Real-time Architecture**: Implemented **Redis Pub/Sub** to bridge the asynchronous Huey worker and FastAPI WebSocket layer, allowing the worker to "push" updates back to connected clients instantly.
 - **AI Safety & Validation**: Implemented strict **Pydantic V2** schemas to parse and validate LLM JSON outputs. If the AI hallucinates invalid data, the system falls back gracefully instead of crashing.
 - **Resilience**: Added **Rate Limiting** (SlowAPI) and **Timeouts** to protect against 3rd-party API failures and potential DoS attacks.
 
@@ -145,6 +150,27 @@ curl http://localhost:8000/api/tickets/1
   "ai_draft_response": "Hello, I sincerely apologize for the double charge..."
 }
 ```
+
+### 3. Real-time Updates (WebSocket)
+
+Connect to receive live updates when tickets change status.
+
+**URL**: `ws://localhost:8000/ws/tickets`
+
+**Client Protocol:**
+
+1. Connect to WebSocket.
+2. Send Subscribe Message:
+   ```json
+   { "action": "subscribe", "ticket_ids": [1, 2, 3] }
+   ```
+3. Receive Updates:
+   ```json
+   {
+     "type": "ticket_updated",
+     "data": { "id": 1, "status": "completed", ... }
+   }
+   ```
 
 ---
 

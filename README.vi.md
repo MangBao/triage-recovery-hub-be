@@ -35,7 +35,8 @@ Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-h
 | 🧠 **AI Triage**          | Phân loại khiếu nại (Billing, Tech, Feature) & đánh giá độ khẩn cấp | `Google Gemini`           |
 | ❤️ **Sentiment Analysis** | Chấm điểm cảm xúc khách hàng (1-10) để ưu tiên xử lý                | `Gemini Pro`              |
 | ✍️ **Auto-Draft**         | Tự động viết câu trả lời mẫu chuyên nghiệp                          | `Generative AI`           |
-| ⚡ **Real-time Queue**    | Xử lý bất đồng bộ, không chặn request của khách                     | `Huey` + `Redis`          |
+| ⚡ **Real-time Push**     | WebSocket Broadcast cập nhật UI tức thì                             | `FastAPI Websockets`      |
+| 🕒 **Async Queue**        | Xử lý bất đồng bộ, không chặn request của khách                     | `Huey` + `Redis`          |
 | 🛡️ **Secure Design**      | Masking dữ liệu nhạy cảm, anti-collision, rollback an toàn          | `Pydantic` + `SQLAlchemy` |
 
 ---
@@ -44,18 +45,22 @@ Demo Video (TODO) | [Frontend Repo](https://github.com/MangBao/triage-recovery-h
 
 ```mermaid
 graph LR
-    User[Client / App] -->|POST Ticket| API[FastAPI Backend]
-    API -->|Save| DB[(PostgreSQL)]
-    API -->|Enqueue| Queue[(Redis)]
-    Queue -->|Consume| Worker[Huey Worker]
-    Worker -->|Analyze| AI[Google Gemini API]
-    AI -->|Result| Worker
-    Worker -->|Update| DB
+    User[Client / App] -->|POST Ticket| API[Backend FastAPI]
+    User <-->|WebSocket| API
+    API -->|Lưu| DB[(PostgreSQL)]
+    API -->|Đẩy hàng đợi| Queue[(Redis)]
+    Queue -->|Tiêu thụ| Worker[Huey Worker]
+    Worker -->|Phân tích| AI[Google Gemini API]
+    AI -->|Kết quả| Worker
+    Worker -->|Cập nhật| DB
+    Worker -->|Pub| Queue
+    Queue -->|Sub Update| API
 ```
 
 ### 💡 Các Quyết định Kỹ thuật (Engineering Decisions)
 
 - **Non-blocking Ingestion**: Tách biệt API (FastAPI) khỏi quá trình xử lý AI bằng **Huey + Redis**. Đảm bảo API trả về `201 Created` dưới 100ms trong khi AI chạy ngầm (Đáp ứng yêu cầu "Bottleneck Test").
+- **Real-time Architecture**: Triển khai **Redis Pub/Sub** để kết nối worker bất đồng bộ và lớp WebSocket của FastAPI, cho phép worker "đẩy" cập nhật về client ngay lập tức.
 - **AI Safety & Validation**: Sử dụng **Pydantic V2** để validate chặt chẽ JSON trả về từ LLM. Nếu AI trả về dữ liệu lỗi, hệ thống sẽ tự động fallback thay vì crash.
 - **Resilience**: Tích hợp **Rate Limiting** (SlowAPI) và **Timeouts** để bảo vệ hệ thống khỏi lỗi API bên thứ 3 và các tấn công DoS.
 
@@ -145,6 +150,27 @@ curl http://localhost:8000/api/tickets/1
   "ai_draft_response": "Chào bạn, xin lỗi vì sự cố trừ tiền đúp..."
 }
 ```
+
+### 3. Cập nhật Thời gian thực (WebSocket)
+
+Kết nối để nhận cập nhật trực tiếp khi trạng thái ticket thay đổi.
+
+**URL**: `ws://localhost:8000/ws/tickets`
+
+**Giao thức Client:**
+
+1. Kết nối tới WebSocket.
+2. Gửi tin nhắn Đăng ký (Subscribe):
+   ```json
+   { "action": "subscribe", "ticket_ids": [1, 2, 3] }
+   ```
+3. Nhận Cập nhật:
+   ```json
+   {
+     "type": "ticket_updated",
+     "data": { "id": 1, "status": "completed", ... }
+   }
+   ```
 
 ---
 
