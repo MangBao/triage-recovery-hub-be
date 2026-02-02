@@ -64,6 +64,13 @@ def process_ticket_triage(ticket_id: int):
             
             logger.info(f"[WORKER] Ticket {ticket_id} claimed and marked as processing")
             
+            # Broadcast "Processing" state to Frontend
+            publish_ticket_update(ticket_id, {
+                "id": ticket.id,
+                "status": TicketStatus.PROCESSING.value,
+                "updated_at": str(ticket.updated_at)
+            })
+            
             # Call Gemini API (triage_service has internal timeout handling)
             logger.info(f"[WORKER] Calling Gemini for ticket {ticket_id}...")
             ai_response = triage_service.triage_complaint(
