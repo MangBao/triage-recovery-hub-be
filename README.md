@@ -97,7 +97,8 @@ docker-compose up -d --build
 
 ### 4️⃣ Advanced Verification
 
-Runs a unified 5-layer test suite covering Functional, Security, and Load resilience.
+Checks Functional, Security, and Load resilience.
+**Note:** Scripts now include a safety prompt to prevent accidental API quota consumption. Use `--force` to bypass.
 
 ```bash
 docker-compose exec backend python tests/full_verification.py

@@ -110,4 +110,13 @@ def run_load_test():
             time.sleep(2)
 
 if __name__ == "__main__":
+    # Safety Check
+    if "--force" not in sys.argv:
+        print(f"\n⚠ WARNING: This is a HEAVY LOAD test ({TOTAL_REQUESTS} requests).")
+        print("   This WILL trigger AI Rate Limits and likely default to 'fallback'.")
+        response = input(f"   Are you sure you want to proceed? (y/N): ").strip().lower()
+        if response != "y":
+            print("❌ Aborted by user.")
+            sys.exit(0)
+            
     run_load_test()

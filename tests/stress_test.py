@@ -9,6 +9,10 @@ API_URL = "http://localhost:8000/api/tickets"
 POLL_INTERVAL = 3  # seconds
 MAX_RETRIES = 10   # 30 seconds max wait
 
+# Colors
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+
 # Test Scenarios
 SCENARIOS = [
     {
@@ -139,6 +143,15 @@ def run_test():
     return success
 
 if __name__ == "__main__":
+    # Safety Check for production/rate-limited environments
+    if "--force" not in sys.argv:
+        print(f"\n{YELLOW}⚠ WARNING: This test calls the AI API multiple times.{RESET}")
+        print(f"{YELLOW}   It may consume rate limits or incur costs.{RESET}")
+        response = input(f"   Are you sure you want to run {len(SCENARIOS)} scenarios? (y/N): ").strip().lower()
+        if response != "y":
+            print("❌ Aborted by user.")
+            sys.exit(0)
+
     success = run_test()
     if success:
         print("🎉 All scenarios passed!")

@@ -51,6 +51,9 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down...")
+    from api.websocket import manager
+    if hasattr(manager, "shutdown"):
+        await manager.shutdown()
 
 
 # Create FastAPI application
@@ -79,7 +82,6 @@ app.add_middleware(
 # Rate Limiting Middleware (global - applies to all routes)
 app.add_middleware(SlowAPIMiddleware)
 
-# Include routers
 # Include routers
 app.include_router(tickets_router, prefix="/api/tickets", tags=["tickets"])
 app.include_router(websocket_router)

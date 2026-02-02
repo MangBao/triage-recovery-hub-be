@@ -37,7 +37,7 @@ class ConnectionManager:
                 subscribe_ticket_updates_async(self.broadcast_ticket_update)
             )
 
-    def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, websocket: WebSocket):
         """Remove connection from all tracking sets."""
         self.all_connections.discard(websocket)
         
@@ -50,6 +50,31 @@ class ConnectionManager:
                     del self.active_connections[ticket_id]
         
         logger.info(f"🔌 WebSocket disconnected. Total: {len(self.all_connections)}")
+        
+        # Cleanup Redis task if no connections left
+        if not self.all_connections and self.redis_task:
+            logger.info("🛑 No active connections. Stopping Redis Subscriber Task...")
+            self.redis_task.cancel()
+            try:
+                await self.redis_task
+            except asyncio.CancelledError:
+                logger.info("✅ Redis Subscriber Task cancelled successfully")
+            self.redis_task = None
+
+    async def shutdown(self):
+        """Cleanup resources on application shutdown."""
+        if self.redis_task:
+            logger.info("🛑 Application Shutdown: Stopping Redis Subscriber Task...")
+            self.redis_task.cancel()
+            try:
+                await self.redis_task
+            except asyncio.CancelledError:
+                pass
+            self.redis_task = None
+            
+        # Optional: Close all websockets if they are still open (though FastAPI usually handles this)
+        # for ws in list(self.all_connections):
+        #     await ws.close()
 
     async def subscribe(self, websocket: WebSocket, ticket_ids: List[int]):
         """Subscribe socket to specific ticket IDs."""
@@ -109,22 +134,59 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except json.JSONDecodeError:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Invalid JSON format"
+                })
+                continue
+            except WebSocketDisconnect:
+                # Re-raise to be handled by outer block
+                raise
+                
             action = data.get("action")
             
             if action == "subscribe":
-                ticket_ids = data.get("ticket_ids", [])
-                if isinstance(ticket_ids, list):
-                    await manager.subscribe(websocket, ticket_ids)
-                    # Ack subscription
+                raw_ids = data.get("ticket_ids", [])
+                
+                # Validate input is a list
+                if not isinstance(raw_ids, list):
                     await websocket.send_json({
-                        "type": "subscribed",
-                        "ticket_ids": ticket_ids
+                        "type": "error",
+                        "message": "ticket_ids must be a list of integers"
                     })
+                    continue
+                
+                # Validate and convert all IDs to integers
+                try:
+                    ticket_ids = [int(x) for x in raw_ids]
+                except (ValueError, TypeError):
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "All ticket_ids must be valid integers"
+                    })
+                    continue
+
+                await manager.subscribe(websocket, ticket_ids)
+                # Ack subscription
+                await websocket.send_json({
+                    "type": "subscribed",
+                    "ticket_ids": ticket_ids
+                })
                     
             elif action == "unsubscribe":
-                ticket_ids = data.get("ticket_ids", [])
-                if isinstance(ticket_ids, list):
+                raw_ids = data.get("ticket_ids", [])
+                if isinstance(raw_ids, list):
+                     # Best effort unsubscribe, safe to ignore invalid ints here usually allowing partials,
+                     # but for consistency we can filter valid ones
+                    ticket_ids = []
+                    for x in raw_ids:
+                        try:
+                            ticket_ids.append(int(x))
+                        except (ValueError, TypeError):
+                            pass
                     await manager.unsubscribe(websocket, ticket_ids)
             
             elif action == "ping":
@@ -137,7 +199,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 })
                 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"❌ WebSocket error: {e}")
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)

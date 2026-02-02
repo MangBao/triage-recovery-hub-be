@@ -9,7 +9,6 @@ Channel: ticket:updated
 
 import json
 import logging
-import logging
 import redis
 import redis.asyncio as redis_async
 from typing import Callable, Any, Awaitable
@@ -40,6 +39,7 @@ def publish_ticket_update(ticket_id: int, ticket_data: dict) -> bool:
     Returns:
         True if published successfully, False otherwise
     """
+    client = None
     try:
         client = get_redis_client()
         
@@ -59,22 +59,23 @@ def publish_ticket_update(ticket_id: int, ticket_data: dict) -> bool:
         logger.error(f"❌ Failed to publish ticket update: {e}")
         return False
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
-def get_pubsub() -> redis.client.PubSub:
+def get_pubsub() -> tuple[redis.Redis, redis.client.PubSub]:
     """
     Get Redis PubSub instance for subscribing.
     
     Used by FastAPI to listen for ticket updates.
     
     Returns:
-        Redis PubSub instance subscribed to ticket update channel
+        Tuple of (Redis client, PubSub instance)
     """
     client = get_redis_client()
     pubsub = client.pubsub()
     pubsub.subscribe(TICKET_UPDATE_CHANNEL)
-    return pubsub
+    return client, pubsub
 
 
 def subscribe_ticket_updates(callback: Callable[[dict], Any]) -> None:
@@ -86,7 +87,7 @@ def subscribe_ticket_updates(callback: Callable[[dict], Any]) -> None:
     Args:
         callback: Function to call with each ticket update message
     """
-    pubsub = get_pubsub()
+    client, pubsub = get_pubsub()
     
     logger.info(f"🔔 Subscribed to channel: {TICKET_UPDATE_CHANNEL}")
     
@@ -102,6 +103,7 @@ def subscribe_ticket_updates(callback: Callable[[dict], Any]) -> None:
         logger.error(f"❌ PubSub subscription error: {e}")
     finally:
         pubsub.close()
+        client.close()
 
 
 async def subscribe_ticket_updates_async(callback: Callable[[dict], Awaitable[Any]]) -> None:

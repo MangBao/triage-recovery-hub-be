@@ -98,6 +98,7 @@ docker-compose up -d --build
 ### 4️⃣ Kiểm thử Nâng cao (Advanced Verification)
 
 Chạy bộ test 5 lớp bao gồm Functional, Security và Load Resilience.
+**Lưu ý:** Các script test giờ đã có cơ chế hỏi xác nhận (Safety Prompt) để tránh tốn quota AI. Dùng cờ `--force` để bỏ qua.
 
 ```bash
 docker-compose exec backend python tests/full_verification.py
